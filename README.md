@@ -1,6 +1,6 @@
 # Hello! We are *the_restorators*. 
 
-This is the project part of the 2023 training course, Deep Learning for Microscopy Image Analysis at Marine Biological Laboratory. Read more [here][https://www.mbl.edu/education/advanced-research-training-courses/course-offerings/dlmbl-deep-learning-microscopy-image-analysis]. 
+This is the project part of the 2023 training course, Deep Learning for Microscopy Image Analysis at Marine Biological Laboratory. Read more [here](https://www.mbl.edu/education/advanced-research-training-courses/course-offerings/dlmbl-deep-learning-microscopy-image-analysis). 
 
 What we want to accomplish learning: 
 1. Basic supervised learning 
