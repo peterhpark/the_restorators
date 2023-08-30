@@ -1,8 +1,8 @@
 # Hello! We are *the_restorators*. 
 
 What we want to accomplish learning: 
-Basic supervised learning 
-Improving generalizability of the model: Domain adaptation, pre-training, and fine-tuning
+1. Basic supervised learning 
+2. Improving generalizability of the model: Domain adaptation, pre-training, and fine-tuning
 
 Proposed plan
 
