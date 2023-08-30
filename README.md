@@ -1,8 +1,10 @@
 # Hello! We are *the_restorators*. 
 
+This is the project part of the training course, Deep Learning for Microscopy Image Analysis at Marine Biological Laboratory in 2023. Read more [here](https://www.mbl.edu/education/advanced-research-training-courses/course-offerings/dlmbl-deep-learning-microscopy-image-analysis). 
+
 What we want to accomplish learning: 
-Basic supervised learning 
-Improving generalizability of the model: Domain adaptation, pre-training, and fine-tuning
+1. Basic supervised learning 
+2. Improving generalizability of the model: Domain adaptation, pre-training, and fine-tuning
 
 Proposed plan
 
