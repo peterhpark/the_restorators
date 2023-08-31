@@ -34,8 +34,7 @@ def transform_into_pinhole_2channels(img, n_lenses, n_pix):
     '''
     pinhole_img = np.zeros((2, n_lenses * n_pix, n_lenses * n_pix))
     for ch in range(2):
-        pinhole_img[0] = transform_into_pinhole(img[0], n_lenses, n_pix)
-        pinhole_img[1] = transform_into_pinhole(img[1], n_lenses, n_pix)
+        pinhole_img[ch] = transform_into_pinhole(img[ch], n_lenses, n_pix)
     return pinhole_img
         
 
