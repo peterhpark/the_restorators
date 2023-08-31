@@ -33,11 +33,12 @@ final_activation=torch.nn.ReLU()
 
 #building model
 model = UNet(in_channels, out_channels, depth, final_activation)
+simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 
 # training parameters
 optimizer = torch.optim.Adam(model.parameters())
-loss_function = torch.nn.MSELoss
+loss_function = torch.nn.MSELoss()
 metric = None
 n_epochs = 1
 
@@ -117,7 +118,7 @@ def train_loop(
         validate_param=False,
 ):
     
-    for epoch in n_epochs:
+    for epoch in range(n_epochs):
         train_1epoch(
             model,
             train_loader,
@@ -133,21 +134,10 @@ def train_loop(
 
 
 if __name__ == "__main__":
-    simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
+    assert torch.cuda.is_available()
 
-
-    train_1epoch(
-    simple_net,
-    train_loader,
-    optimizer=torch.optim.Adam(simple_net.parameters()),
-    loss_function=torch.nn.MSELoss(),
-    epoch=0,
-    log_interval=1,
-    early_stop=True,
-)
-
-    """
-    train_loop( #apply training
+    
+    train_loop(
         n_epochs,
         model,
         train_loader,
@@ -160,4 +150,3 @@ if __name__ == "__main__":
         early_stop=False,
         validate_param=False,
 )
-"""
