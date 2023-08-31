@@ -2,11 +2,16 @@ from tifffile import imread
 import matplotlib.pyplot as plt
 import numpy as np
 
-def transform_into_perspective(img, n_lenses, n_pix):
-    '''Transforms a light field image into an image of perspective views'''
-    perspective_img = np.zeros((n_lenses * n_pix, n_lenses * n_pix))
-    n_lenses = 33
-    n_pix = 17
+def transform_into_pinhole(img, n_lenses, n_pix):
+    '''Transforms a light field image into an image of perspective views
+    Parameters:
+        img: 2D numpy array of shape (n_lenses * n_pix, n_lenses * n_pix)
+        n_lenses: int
+        n_pix: int
+    Returns:
+        pinhole_img: 2D numpy array
+    '''
+    pinhole_img = np.zeros((n_lenses * n_pix, n_lenses * n_pix))
     for lx in range(n_lenses):
         for ly in range(n_lenses):
             for i in range(n_pix):
@@ -15,8 +20,24 @@ def transform_into_perspective(img, n_lenses, n_pix):
                     lfy = ly * n_pix + j
                     psx = i *  n_lenses + lx
                     psy = j *  n_lenses + ly
-                    perspective_img[psx, psy] = img[lfx, lfy]
-    return perspective_img
+                    pinhole_img[psx, psy] = img[lfx, lfy]
+    return pinhole_img
+
+def transform_into_pinhole_2channels(img, n_lenses, n_pix):
+    '''Transforms a pair of light field images into images of perspective views
+    Parameters:
+        img: 3D numpy array of shape (2, n_lenses * n_pix, n_lenses * n_pix)
+        n_lenses: int
+        n_pix: int
+    Returns:
+        pinhole_img: 3D numpy array
+    '''
+    pinhole_img = np.zeros((2, n_lenses * n_pix, n_lenses * n_pix))
+    for ch in range(2):
+        pinhole_img[0] = transform_into_pinhole(img[0], n_lenses, n_pix)
+        pinhole_img[1] = transform_into_pinhole(img[1], n_lenses, n_pix)
+    return pinhole_img
+        
 
 def read_plot_vol_tiff(filename):
     '''Reads and plots a slice of the volume tiff'''
