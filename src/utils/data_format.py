@@ -36,7 +36,11 @@ def transform_into_pinhole_2channels(img, n_lenses, n_pix):
     for ch in range(2):
         pinhole_img[ch] = transform_into_pinhole(img[ch], n_lenses, n_pix)
     return pinhole_img
-        
+
+def pinhole2stack(img, n_lenses, n_pix):
+    
+    pass
+    
 
 def read_plot_vol_tiff(filename):
     '''Reads and plots a slice of the volume tiff'''
