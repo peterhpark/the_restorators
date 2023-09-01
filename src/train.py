@@ -13,21 +13,45 @@ from torchvision import transforms
 
 #import custom method
 from Data import NucleiDataset
+from Data import SimpleMonalisaDataset
+
+### simple monalisa data loading ###
+
+#paths for train, val, test
+
+input_dir_train = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/input"
+gt_dir_train = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/gt"
+
+input_dir_val = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/val/input"
+gt_dir_val = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/val/gt"
+
+input_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/input"
+gt_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/gt"
+
+#creating loaders train,val, test
+train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,transforms.RandomCrop(256))
+train_loader = DataLoader(train_data,batch_size=5,shuffle=True)
+
+val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_test,transforms.RandomCrop(256))
+val_loader = DataLoader(train_data,batch_size=5)
+
+test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test,transforms.RandomCrop(256))
+test_loader = DataLoader(train_data,batch_size=5)
 
 
-#data
-TRAIN_DATA_PATH = "src/nuclei_train_data"
+#test data
+""" TRAIN_DATA_PATH = "src/nuclei_train_data"
 train_data = NucleiDataset(TRAIN_DATA_PATH, transforms.RandomCrop(256))
 train_loader = DataLoader(train_data, batch_size=5, shuffle=True)
 
 VAL_DATA_PATH = "src/nuclei_val_data"
 val_data = NucleiDataset(VAL_DATA_PATH, transforms.RandomCrop(256))
-val_loader = DataLoader(val_data, batch_size=5)
+val_loader = DataLoader(val_data, batch_size=5) """
 
 # model parameters
 in_channels=1
 out_channels=1
-depth=2
+depth=4
 final_activation=torch.nn.ReLU()
 
 #building model
@@ -39,7 +63,7 @@ simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 optimizer = torch.optim.Adam(model.parameters())
 loss_function = torch.nn.MSELoss()
 metric = None
-n_epochs = 1
+n_epochs = 10
 
 
 #validate function
@@ -89,7 +113,7 @@ def train_1epoch(
     optimizer,
     loss_function,
     epoch,
-    log_interval=100,
+    log_interval=1,
     device=None,
     early_stop=False,
 ):
@@ -112,6 +136,7 @@ def train_1epoch(
 
     # iterate over the batches of this epoch
     for batch_id, (x, y) in enumerate(loader):
+        print(batch_id)
         # move input and target to the active device (either cpu or gpu)
         x, y = x.to(device), y.to(device)
 
@@ -122,7 +147,8 @@ def train_1epoch(
         optimizer.step()
         optimizer.zero_grad()
         avg_loss += loss
-
+        
+        """
         # log to console
         if batch_id % log_interval == 0:
             print(
@@ -134,6 +160,7 @@ def train_1epoch(
                     loss.item(),
                 )
             )
+        """
 
         if early_stop and batch_id > 5:
             print("Stopping test early!")
@@ -180,7 +207,6 @@ def train_loop(
 if __name__ == "__main__":
     assert torch.cuda.is_available()
 
-    
     train_loop(
         n_epochs,
         model,
