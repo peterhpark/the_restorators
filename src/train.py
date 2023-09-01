@@ -15,6 +15,7 @@ from torchvision import transforms
 from Data import NucleiDataset
 from Data import SimpleMonalisaDataset
 
+
 ### simple monalisa data loading ###
 
 #paths for train, val, test
@@ -28,14 +29,30 @@ gt_dir_val = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/
 input_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/input"
 gt_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/gt"
 
+
+list_transforms = transforms.Compose(
+    [
+        transforms.RandomCrop(256),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip()
+    ]
+)
+
+list_transforms = transforms.RandomCrop(256)
+
+avg_input = 56.2473
+std_input = 144.2397
+avg_gt = 67.9836
+std_gt = 179.4052
+
 #creating loaders train,val, test
-train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,transforms.RandomCrop(256))
+train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,list_transforms)
 train_loader = DataLoader(train_data,batch_size=5,shuffle=True)
 
-val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_test,transforms.RandomCrop(256))
+val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_val, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
 val_loader = DataLoader(train_data,batch_size=5)
 
-test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test,transforms.RandomCrop(256))
+test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
 test_loader = DataLoader(train_data,batch_size=5)
 
 
@@ -52,10 +69,10 @@ val_loader = DataLoader(val_data, batch_size=5) """
 in_channels=1
 out_channels=1
 depth=4
-final_activation=torch.nn.ReLU()
+final_activation=None
 
 #building model
-model = UNet(in_channels, out_channels, depth, final_activation)
+model = UNet(in_channels, out_channels, depth, final_activation=None)
 simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 
@@ -63,7 +80,7 @@ simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 optimizer = torch.optim.Adam(model.parameters())
 loss_function = torch.nn.MSELoss()
 metric = None
-n_epochs = 10
+n_epochs = 100
 
 
 #validate function
@@ -136,7 +153,7 @@ def train_1epoch(
 
     # iterate over the batches of this epoch
     for batch_id, (x, y) in enumerate(loader):
-        print(batch_id)
+        
         # move input and target to the active device (either cpu or gpu)
         x, y = x.to(device), y.to(device)
 
@@ -147,7 +164,7 @@ def train_1epoch(
         optimizer.step()
         optimizer.zero_grad()
         avg_loss += loss
-        
+
         """
         # log to console
         if batch_id % log_interval == 0:
@@ -161,12 +178,14 @@ def train_1epoch(
                 )
             )
         """
+        print("Epoch: ", epoch, " - batch: ", batch_id, "- loss: ", loss.item())
 
         if early_stop and batch_id > 5:
             print("Stopping test early!")
             break
-    avg_loss = avg_loss/len(loader)
-
+    avg_loss = avg_loss.item()/len(loader)
+    print("avg_loss: ", avg_loss)
+    
     return avg_loss
 
 # train for n_epochs function
@@ -204,8 +223,10 @@ def train_loop(
 
 
 
+
 if __name__ == "__main__":
     assert torch.cuda.is_available()
+
 
     train_loop(
         n_epochs,
@@ -220,3 +241,4 @@ if __name__ == "__main__":
         early_stop=False,
         validate_param=True,
 )
+
