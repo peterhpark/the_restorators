@@ -75,10 +75,12 @@ def validate(model,
             val_loss += loss_function(prediction,y).item()
             if metric is not None:
                 val_metric += metric(prediction,y).item()
-    
+
+    val_loss = val_loss / len(loader)
+
     print("Val_loss: ", val_loss, "Val_metric: ", val_metric)
 
-    return
+    return val_loss
 
 # train for one epoch function
 def train_1epoch(
@@ -106,6 +108,8 @@ def train_1epoch(
     # move model to device
     model = model.to(device)
 
+    avg_loss = 0
+
     # iterate over the batches of this epoch
     for batch_id, (x, y) in enumerate(loader):
         # move input and target to the active device (either cpu or gpu)
@@ -117,7 +121,8 @@ def train_1epoch(
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        
+        avg_loss += loss
+
         # log to console
         if batch_id % log_interval == 0:
             print(
@@ -133,7 +138,9 @@ def train_1epoch(
         if early_stop and batch_id > 5:
             print("Stopping test early!")
             break
+    avg_loss = avg_loss/len(loader)
 
+    return avg_loss
 
 # train for n_epochs function
 def train_loop(
@@ -149,9 +156,9 @@ def train_loop(
         early_stop=False,
         validate_param=False,
 ):
-    
+    best_val_loss = 100
     for epoch in range(n_epochs):
-        train_1epoch(
+        avg_loss = train_1epoch(
                 model,
                 train_loader,
                 optimizer,
@@ -163,7 +170,10 @@ def train_loop(
         )
         
         if validate_param:
-            validate(model, val_loader, loss_function, metric)
+            val_loss = validate(model, val_loader, loss_function, metric)
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save(model, "model.pt")
 
 
 

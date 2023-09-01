@@ -40,9 +40,9 @@ class BirefringenceDataset(RestoratorsDataset):
         #  transformations to apply just to inputs
         self.input_transform = transforms.ToTensor()
 
-    # # get the total number of samples
-    # def __len__(self):
-    #     return len(self.source)
+    # get the total number of samples
+    def __len__(self):
+        return len(self.source)
 
     # fetch the training sample given its index
     def __getitem__(self, idx):
@@ -73,13 +73,17 @@ class BirefringenceDataset(RestoratorsDataset):
         # pinhole_stack = transform_into_pinhole_2channels(image)
         return pinhole_stack
 
-# any PyTorch dataset class should inherit the initial torch.utils.data.Dataset
+
+
+
 class SimpleMonalisaDataset(Dataset):
     """A PyTorch dataset to reconstruted pairs of monalisa data (e.g. for upsampling)"""
 
-    def __init__(self, root_dir, transform=None, input_transform=None):
-        self.root_dir = root_dir  # the directory with all the training samples
-        self.samples = os.listdir(root_dir)  # list the samples
+    def __init__(self, input_dir, gt_dir, transform=None, input_transform=None):
+        self.input_dir = input_dir  
+        self.gt_dir = gt_dir
+        self.input_list = sorted(os.listdir(self.input_dir))
+        self.gt_list = sorted(os.listdir(self.gt_dir))
         self.transform = (
             transform  # transformations to apply to both inputs and gt
         )
@@ -94,27 +98,28 @@ class SimpleMonalisaDataset(Dataset):
 
     # get the total number of samples
     def __len__(self):
-        return len(self.samples)
+        return len(self.input_list)
 
     # fetch the training sample given its index
     def __getitem__(self, idx):
-        input_path = os.path.join(self.root_dir, self.samples[idx], "image.tif")
+        input_path = os.path.join(self.input_dir,self.input_list[idx])
+        gt_path = os.path.join(self.gt_dir,self.gt_list[idx])
 
         input = Image.open(input_path)
         input = self.inp_transforms(input)
-        mask_path = os.path.join(self.root_dir, self.samples[idx], "mask.tif")
-        mask = transforms.ToTensor()(Image.open(mask_path))
+        gt = transforms.ToTensor()(Image.open(gt_path))
+
         if self.transform is not None:
             # Note: using seeds to ensure the same random transform is applied to
             # the image and mask
             seed = torch.seed()
             torch.manual_seed(seed)
-            image = self.transform(image)
+            input = self.transform(input)
             torch.manual_seed(seed)
-            mask = self.transform(mask)
-        if self.img_transform is not None:
-            image = self.img_transform(image)
-        return image, mask
+            gt = self.transform(gt)
+        if self.input_transform is not None:
+            input = self.input_transform(input)
+        return input, gt
 
 
 
