@@ -10,6 +10,51 @@ import numpy as np
 
 
 
+# any PyTorch dataset class should inherit the initial torch.utils.data.Dataset
+class SimpleMonalisaDataset(Dataset):
+    """A PyTorch dataset to reconstruted pairs of monalisa data (e.g. for upsampling)"""
+
+    def __init__(self, root_dir, transform=None, input_transform=None):
+        self.root_dir = root_dir  # the directory with all the training samples
+        self.samples = os.listdir(root_dir)  # list the samples
+        self.transform = (
+            transform  # transformations to apply to both inputs and gt
+        )
+        self.input_transform = input_transform  # transformations to apply to raw image only
+        #  transformations to apply just to inputs
+        self.inp_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize([0.5], [0.5]), # 0.5 = mean and 0.5 = variance 
+            ]
+        )
+
+    # get the total number of samples
+    def __len__(self):
+        return len(self.samples)
+
+    # fetch the training sample given its index
+    def __getitem__(self, idx):
+        input_path = os.path.join(self.root_dir, self.samples[idx], "image.tif")
+
+        input = Image.open(input_path)
+        input = self.inp_transforms(input)
+        mask_path = os.path.join(self.root_dir, self.samples[idx], "mask.tif")
+        mask = transforms.ToTensor()(Image.open(mask_path))
+        if self.transform is not None:
+            # Note: using seeds to ensure the same random transform is applied to
+            # the image and mask
+            seed = torch.seed()
+            torch.manual_seed(seed)
+            image = self.transform(image)
+            torch.manual_seed(seed)
+            mask = self.transform(mask)
+        if self.img_transform is not None:
+            image = self.img_transform(image)
+        return image, mask
+
+
+
 
 # any PyTorch dataset class should inherit the initial torch.utils.data.Dataset
 class NucleiDataset(Dataset):
