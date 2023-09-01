@@ -40,9 +40,9 @@ class BirefringenceDataset(RestoratorsDataset):
         #  transformations to apply just to inputs
         self.input_transform = transforms.ToTensor()
 
-    # # get the total number of samples
-    # def __len__(self):
-    #     return len(self.source)
+    # get the total number of samples
+    def __len__(self):
+        return len(self.source)
 
     # fetch the training sample given its index
     def __getitem__(self, idx):
