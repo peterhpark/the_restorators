@@ -28,23 +28,56 @@ val_loader = DataLoader(val_data, batch_size=5)
 in_channels=1
 out_channels=1
 depth=2
-final_activation = None
 final_activation=torch.nn.ReLU()
 
 #building model
 model = UNet(in_channels, out_channels, depth, final_activation)
+simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 
 # training parameters
 optimizer = torch.optim.Adam(model.parameters())
-loss_function = torch.nn.MSELoss
+loss_function = torch.nn.MSELoss()
 metric = None
 n_epochs = 1
 
 
 #validate function
-def validate():
-    #TODO
+def validate(model,
+    loader,
+    loss_function,
+    metric,
+    device=None,
+):
+    if metric is None:
+        print("WARNING: NO METRIC FOR VALIDATION")
+        
+    if device is None:
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+
+    model.eval()
+    model.to(device)
+
+    # running loss and metric values
+    val_loss = 0
+    val_metric = 0
+
+    # disable gradients during validation
+    with torch.no_grad():
+        # iterate over validation loader and update loss and metric values
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            # TODO: evaluate this example with the given loss and metric
+            prediction = model(x)
+            val_loss += loss_function(prediction,y).item()
+            if metric is not None:
+                val_metric += metric(prediction,y).item()
+    
+    print("Val_loss: ", val_loss, "Val_metric: ", val_metric)
+
     return
 
 # train for one epoch function
@@ -117,14 +150,16 @@ def train_loop(
         validate_param=False,
 ):
     
-    for epoch in n_epochs:
+    for epoch in range(n_epochs):
         train_1epoch(
-            model,
-            train_loader,
-            optimizer=optimizer,
-            loss_function=loss_function,
-            epoch=epoch,
-            log_interval=log_interval,
+                model,
+                train_loader,
+                optimizer,
+                loss_function,
+                epoch,
+                log_interval=100,
+                device=None,
+                early_stop=False,
         )
         
         if validate_param:
@@ -133,21 +168,10 @@ def train_loop(
 
 
 if __name__ == "__main__":
-    simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
+    assert torch.cuda.is_available()
 
-
-    train_1epoch(
-    simple_net,
-    train_loader,
-    optimizer=torch.optim.Adam(simple_net.parameters()),
-    loss_function=torch.nn.MSELoss(),
-    epoch=0,
-    log_interval=1,
-    early_stop=True,
-)
-
-    """
-    train_loop( #apply training
+    
+    train_loop(
         n_epochs,
         model,
         train_loader,
@@ -158,6 +182,5 @@ if __name__ == "__main__":
         log_interval=100,
         device=None,
         early_stop=False,
-        validate_param=False,
+        validate_param=True,
 )
-"""
