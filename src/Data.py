@@ -8,6 +8,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from abc import ABC, abstractmethod
+import tifffile
 
 class RestoratorsDataset(Dataset, ABC):
     '''A PyTorch dataset to serve as a base class for our custom transformer datasets.'''
@@ -30,7 +31,7 @@ class RestoratorsDataset(Dataset, ABC):
 
 class BirefringenceDataset(RestoratorsDataset):
     """A PyTorch dataset to load polarized light field images and birefringent objects"""
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, transform=None, split='train'):
         self.root_dir = root_dir  # the directory with all the training samples
         self.samples = os.listdir(root_dir)  # list the parent directory of samples
         self.source = os.listdir(os.path.join(self.root_dir, 'images')) # source domain
@@ -38,7 +39,19 @@ class BirefringenceDataset(RestoratorsDataset):
         self.img_transform = self.img_transform  # transformations to apply to raw LF image only
         self.transform = transform  # transformations for augmentations
         #  transformations to apply just to inputs
-        self.input_transform = transforms.ToTensor()
+        # self.input_transform # transforms.ToTensor() only works on smaller dim images
+        num_train = int(0.60 * len(self.source)) # reducing this will speed up the epochs when training
+        num_test = int(0.16 * len(self.source))
+        num_val = int(0.24 * len(self.source))
+        if split=='train':
+            self.source = self.source[:num_train]
+            self.target = self.target[:num_train]
+        elif split=='val':
+            self.source = self.source[num_train:num_train+num_val]
+            self.target = self.target[num_train:num_train+num_val]
+        elif split=='test':
+            self.source = self.source[num_train+num_val:]
+            self.target = self.target[num_train+num_val:]
 
     # get the total number of samples
     def __len__(self):
@@ -49,29 +62,19 @@ class BirefringenceDataset(RestoratorsDataset):
         source_path = os.path.join(self.root_dir, 'images', self.source[idx])
         # We'll be using Pillow library for reading files
         # since many torchvision transforms operate on PIL images
-        source = Image.open(source_path)
-        source = self.input_transform(source)
+        source = tifffile.imread(source_path)
+        source = self.numpy2tensor(source).to(torch.float32)
         target_path = os.path.join(self.root_dir, 'objects', self.target[idx])
-        target = Image.open(target_path)
-        target = self.input_transform(target)
-        if self.transform is not None:
-            # Note: using seeds to ensure the same random transform is applied to
-            # the source and target
-            seed = torch.seed()
-            torch.manual_seed(seed)
-            source = self.transform(source)
-            torch.manual_seed(seed)
-            target = self.transform(target)
-        # if self.img_transform is not None:
-        #     source = self.img_transform(source)
+        target = tifffile.imread(target_path)
+        target = self.numpy2tensor(target).to(torch.float32)
         return source, target
 
     def img_transform(self, image):
-        '''Transforms the light field image into a stack of perspective views.'''
-        pinhole_stack = image
-        # TODO: write function
-        # pinhole_stack = transform_into_pinhole_2channels(image)
-        return pinhole_stack
+        '''Transforms, normally in a simple way, the source data.'''
+        return image
+    
+    def numpy2tensor(self, array):
+        return torch.from_numpy(array)
 
 
 
@@ -120,8 +123,6 @@ class SimpleMonalisaDataset(Dataset):
         if self.input_transform is not None:
             input = self.input_transform(input)
         return input, gt
-
-
 
 
 class NucleiDataset(Dataset):
@@ -192,5 +193,6 @@ if __name__ == "__main__":
     # train_loader, val_loader = load()
     TRAIN_DATA_PATH = "/mnt/efs/shared_data/restorators/spheres"
 
-    train_data = BirefringenceDataset(TRAIN_DATA_PATH)
-    train_data[0]
+    train_data = BirefringenceDataset(TRAIN_DATA_PATH, split='test')
+    train_data[0] # pair 0
+    train_data[1] # pair 1
