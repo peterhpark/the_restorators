@@ -58,11 +58,11 @@ std_gt = 177.3616
 train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,transform=list_transforms)
 train_loader = DataLoader(train_data,batch_size=8,shuffle=True)
 
-val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_val, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
-val_loader = DataLoader(train_data,batch_size=5)
+val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_val, transform=transforms.CenterCrop(256), mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
+val_loader = DataLoader(val_data,batch_size=5)
 
-test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
-test_loader = DataLoader(train_data,batch_size=5)
+test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test, transform=transforms.CenterCrop(256), mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
+test_loader = DataLoader(test_data,batch_size=5)
 
 
 #test data
@@ -131,9 +131,25 @@ def validate(model,
             if metric is not None:
                 avg_val_metric += metric(prediction,y).item()
 
+            input_img = x[0,...]
+            input_img = (input_img -torch.min(input_img))
+            input_img = 255 * input_img / torch.max(input_img)
+            input_img = input_img.type(torch.uint8)
+            print(input_img.shape)
+
+            gt_img = y[0,...]
+            gt_img = (gt_img -torch.min(gt_img))
+            gt_img = 255 * gt_img / torch.max(gt_img)
+            gt_img = gt_img.type(torch.uint8)
             
-            writer.add_image('prediction', prediction[0,...], 0)
-            writer.add_image('ground truth', y[0,...], 1)
+            output_img = prediction[0,...]
+            output_img = (output_img -torch.min(output_img))
+            output_img = 255 * output_img / torch.max(output_img)
+            output_img = output_img.type(torch.uint8)
+            
+            writer.add_image('input', input_img, epoch)
+            writer.add_image('prediction', output_img, epoch)
+            writer.add_image('ground truth', gt_img, epoch)
 
         #imsave(f"src/visualize/gt_val_epoch{epoch}.tiff" ,y[0,0,...].detach().cpu().numpy())
         #imsave(f"src/visualize/pred_val_epoch{epoch}.tiff" ,prediction[0,0,...].detach().cpu().numpy())

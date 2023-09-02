@@ -118,8 +118,8 @@ class SimpleMonalisaDataset(Dataset):
                     self.min = torch.min(input)
                 
 
-            self.avg_input = self.avg_input / len(self.input_list)
-            self.std_input = self.std_input / len(self.input_list)
+            self.avg_input = (self.avg_input / len(self.input_list)).item()
+            self.std_input = (self.std_input / len(self.input_list)).item()
 
             for file in self.gt_list:
                 gt_path = os.path.join(self.gt_dir,file)
@@ -128,8 +128,8 @@ class SimpleMonalisaDataset(Dataset):
                 self.avg_gt += torch.mean(gt)
                 self.std_gt += torch.std(gt)
 
-            self.avg_gt = self.avg_gt / len(self.gt_list)
-            self.std_gt = self.std_gt / len(self.gt_list)
+            self.avg_gt = (self.avg_gt / len(self.gt_list)).item()
+            self.std_gt = (self.std_gt / len(self.gt_list)).item()
 
             print((self.max-self.avg_input)/self.std_input, (self.min-self.avg_input)/self.std_input)
             
@@ -160,12 +160,12 @@ class SimpleMonalisaDataset(Dataset):
 
         #input = Image.open(input_path)
         input = imread(input_path)
-        input = (input - self.avg_input.item()) / self.std_input.item()
+        input = (input - self.avg_input) / self.std_input
         input = self.inp_transforms(input)
 
         #gt = Image.open(gt_path)
         gt = imread(gt_path)
-        gt = (gt - self.avg_gt.item()) / self.std_gt.item()
+        gt = (gt - self.avg_gt) / self.std_gt
         gt= transforms.ToTensor()(gt)
 
         if self.transform is not None:
