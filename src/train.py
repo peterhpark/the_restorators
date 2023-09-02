@@ -10,10 +10,15 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from Models import UNet
 from torchvision import transforms
+from torch.utils.tensorboard import SummaryWriter
+from skimage.metrics import peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim
+writer=SummaryWriter()
 
 #import custom method
-from Data import NucleiDataset
+#from Data import NucleiDataset
 from Data import SimpleMonalisaDataset
+
 
 ### simple monalisa data loading ###
 
@@ -28,14 +33,31 @@ gt_dir_val = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/
 input_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/input"
 gt_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/gt"
 
+
+list_transforms = transforms.Compose(
+    [
+        transforms.RandomCrop(256),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip()
+    ]
+)
+
+list_transforms = transforms.RandomCrop(256)
+
+
+avg_input = 53.7212
+std_input = 142.2594
+avg_gt = 66.3622
+std_gt = 177.3616
+
 #creating loaders train,val, test
-train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,transforms.RandomCrop(256))
+train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,list_transforms)
 train_loader = DataLoader(train_data,batch_size=5,shuffle=True)
 
-val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_test,transforms.RandomCrop(256))
+val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_val, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
 val_loader = DataLoader(train_data,batch_size=5)
 
-test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test,transforms.RandomCrop(256))
+test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
 test_loader = DataLoader(train_data,batch_size=5)
 
 
@@ -52,18 +74,18 @@ val_loader = DataLoader(val_data, batch_size=5) """
 in_channels=1
 out_channels=1
 depth=4
-final_activation=torch.nn.ReLU()
+final_activation=None
 
 #building model
-model = UNet(in_channels, out_channels, depth, final_activation)
+model = UNet(in_channels, out_channels, depth, final_activation=None)
 simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 
 # training parameters
-optimizer = torch.optim.Adam(model.parameters())
+optimizer = torch.optim.Adam(model.parameters(),lr=0.0001)
 loss_function = torch.nn.MSELoss()
 metric = None
-n_epochs = 10
+n_epochs = 2000
 
 
 #validate function
@@ -73,9 +95,7 @@ def validate(model,
     metric,
     device=None,
 ):
-    if metric is None:
-        print("WARNING: NO METRIC FOR VALIDATION")
-        
+            
     if device is None:
         if torch.cuda.is_available():
             device = torch.device("cuda")
@@ -86,8 +106,10 @@ def validate(model,
     model.to(device)
 
     # running loss and metric values
-    val_loss = 0
-    val_metric = 0
+    avg_val_loss = 0
+    avg_val_metric = 0
+    avg_val_psnr = 0
+    avg_val_ssim = 0
 
     # disable gradients during validation
     with torch.no_grad():
@@ -96,15 +118,21 @@ def validate(model,
             x, y = x.to(device), y.to(device)
             # TODO: evaluate this example with the given loss and metric
             prediction = model(x)
-            val_loss += loss_function(prediction,y).item()
+            #print(prediction.shape)
+            #print(y.shape)
+            avg_val_loss += loss_function(prediction,y).item()
+            avg_val_psnr += psnr(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=100)
+            avg_val_ssim+= ssim(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=100)
             if metric is not None:
-                val_metric += metric(prediction,y).item()
+                avg_val_metric += metric(prediction,y).item()
 
-    val_loss = val_loss / len(loader)
+    avg_val_loss = avg_val_loss / len(loader)
+    avg_val_psnr = avg_val_psnr / len(loader)
+    avg_val_ssim = avg_val_ssim / len(loader)
 
-    print("Val_loss: ", val_loss, "Val_metric: ", val_metric)
+    #print("Val_loss: ", val_loss, "Val_metric: ", val_metric)
 
-    return val_loss
+    return avg_val_loss, avg_val_psnr, avg_val_ssim
 
 # train for one epoch function
 def train_1epoch(
@@ -133,21 +161,27 @@ def train_1epoch(
     model = model.to(device)
 
     avg_loss = 0
+    avg_psnr = 0
+    avg_ssim = 0
 
     # iterate over the batches of this epoch
     for batch_id, (x, y) in enumerate(loader):
-        print(batch_id)
+        
         # move input and target to the active device (either cpu or gpu)
         x, y = x.to(device), y.to(device)
 
         # apply model and calculate loss
         prediction = model(x)  # placeholder since we use prediction later
+        #print(prediction.shape)
+        #print(y.shape)
         loss = loss_function(prediction,y)  # placeholder since we use the loss later
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
         avg_loss += loss
-        
+        avg_psnr += psnr(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=100)
+        avg_ssim += ssim(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=100)
+
         """
         # log to console
         if batch_id % log_interval == 0:
@@ -161,13 +195,17 @@ def train_1epoch(
                 )
             )
         """
+        #print("Epoch: ", epoch, " - batch: ", batch_id, "- loss: ", loss.item())
 
         if early_stop and batch_id > 5:
             print("Stopping test early!")
             break
-    avg_loss = avg_loss/len(loader)
-
-    return avg_loss
+    avg_loss = avg_loss.item()/len(loader)
+    avg_psnr = avg_psnr / len(loader)
+    avg_ssim = avg_ssim / len(loader)
+    print("avg_loss: ", avg_loss)
+    
+    return avg_loss, avg_psnr, avg_ssim
 
 # train for n_epochs function
 def train_loop(
@@ -185,7 +223,7 @@ def train_loop(
 ):
     best_val_loss = 100
     for epoch in range(n_epochs):
-        avg_loss = train_1epoch(
+        avg_loss, avg_psnr, avg_ssim = train_1epoch(
                 model,
                 train_loader,
                 optimizer,
@@ -197,15 +235,29 @@ def train_loop(
         )
         
         if validate_param:
-            val_loss = validate(model, val_loader, loss_function, metric)
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
+            avg_val_loss, avg_val_psnr, avg_val_ssim = validate(model, val_loader, loss_function, metric)
+            if avg_val_loss < best_val_loss:
+                print(f"Epoch {epoch} validation loss ({avg_val_loss}) is better than previous ({best_val_loss}) so saving!")
+                best_val_loss = avg_val_loss
                 torch.save(model, "model.pt")
+            else:
+                print(f"Epoch {epoch} validation loss ({avg_val_loss}) is worse than previous ({best_val_loss}) so no saving!")
+
+        writer.add_scalar('Avg_loss_train',avg_loss,epoch)
+        writer.add_scalar('Avg_loss_val',avg_val_loss,epoch)
+        writer.add_scalar('Avg_psnr_train',avg_psnr,epoch)
+        writer.add_scalar('Avg_psnr_val',avg_val_psnr,epoch)
+        writer.add_scalar('Avg_ssim_train',avg_ssim,epoch)
+        writer.add_scalar('Avg_ssim_val',avg_val_ssim,epoch)
+    torch.save(model, "last_epoch.pt")
+
+
 
 
 
 if __name__ == "__main__":
     assert torch.cuda.is_available()
+
 
     train_loop(
         n_epochs,
@@ -220,3 +272,4 @@ if __name__ == "__main__":
         early_stop=False,
         validate_param=True,
 )
+
