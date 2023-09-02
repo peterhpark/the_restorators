@@ -91,9 +91,9 @@ class SimpleMonalisaDataset(Dataset):
             transform  # transformations to apply to both inputs and gt
         )
         self.input_transform = input_transform  # transformations to apply to raw image only
-        #  transformations to apply just to inputs
 
-
+        # avg, std for normalization
+        # max, min for psnr/ssim range computations
         if mean_input is None:
 
             self.avg_input = 0
@@ -101,12 +101,22 @@ class SimpleMonalisaDataset(Dataset):
             self.std_input = 0
             self.std_gt = 0
 
+            self.max = 0
+            self.min = 100
+
             for file in self.input_list:
                 input_path = os.path.join(self.input_dir,file)
                 input = transforms.ToTensor()(Image.open(input_path))
                 
                 self.avg_input += torch.mean(input)
                 self.std_input += torch.std(input)
+
+                if torch.max(input)>self.max:
+                    self.max = torch.max(input)
+                if torch.min(input)<self.min:
+                    self.min = torch.min(input)
+                
+
             self.avg_input = self.avg_input / len(self.input_list)
             self.std_input = self.std_input / len(self.input_list)
 
@@ -116,9 +126,11 @@ class SimpleMonalisaDataset(Dataset):
                 
                 self.avg_gt += torch.mean(gt)
                 self.std_gt += torch.std(gt)
+
             self.avg_gt = self.avg_gt / len(self.gt_list)
             self.std_gt = self.std_gt / len(self.gt_list)
 
+            print((self.max-self.avg_input)/self.std_input, (self.min-self.avg_input)/self.std_input)
             
         else:
             self.avg_input=mean_input
@@ -127,6 +139,7 @@ class SimpleMonalisaDataset(Dataset):
             self.std_gt=std_gt
 
         print(self.avg_input,self.std_input,self.avg_gt,self.std_gt)
+        
 
         self.inp_transforms = transforms.Compose(
             [
@@ -140,6 +153,7 @@ class SimpleMonalisaDataset(Dataset):
 
     # fetch the training sample given its index
     def __getitem__(self, idx):
+        #print(idx)
         input_path = os.path.join(self.input_dir,self.input_list[idx])
         gt_path = os.path.join(self.gt_dir,self.gt_list[idx])
 

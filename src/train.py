@@ -13,6 +13,8 @@ from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
+import torchvision
+from tifffile import imsave
 writer=SummaryWriter()
 
 #import custom method
@@ -42,17 +44,16 @@ list_transforms = transforms.Compose(
     ]
 )
 
-list_transforms = transforms.RandomCrop(256)
+#list_transforms = transforms.RandomCrop(256)
 
-
-avg_input = 53.7212
-std_input = 142.2594
+avg_input = 55.0787
+std_input = 144.3149
 avg_gt = 66.3622
 std_gt = 177.3616
 
 #creating loaders train,val, test
 train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,list_transforms)
-train_loader = DataLoader(train_data,batch_size=5,shuffle=True)
+train_loader = DataLoader(train_data,batch_size=8,shuffle=True)
 
 val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_val, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
 val_loader = DataLoader(train_data,batch_size=5)
@@ -82,10 +83,10 @@ simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 
 # training parameters
-optimizer = torch.optim.Adam(model.parameters(),lr=0.0001)
+optimizer = torch.optim.Adam(model.parameters(),lr=0.00001)
 loss_function = torch.nn.MSELoss()
 metric = None
-n_epochs = 2000
+n_epochs = 1000
 
 
 #validate function
@@ -94,6 +95,7 @@ def validate(model,
     loss_function,
     metric,
     device=None,
+    epoch=None
 ):
             
     if device is None:
@@ -110,7 +112,7 @@ def validate(model,
     avg_val_metric = 0
     avg_val_psnr = 0
     avg_val_ssim = 0
-
+    
     # disable gradients during validation
     with torch.no_grad():
         # iterate over validation loader and update loss and metric values
@@ -121,10 +123,18 @@ def validate(model,
             #print(prediction.shape)
             #print(y.shape)
             avg_val_loss += loss_function(prediction,y).item()
-            avg_val_psnr += psnr(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=100)
-            avg_val_ssim+= ssim(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=100)
+            avg_val_psnr += psnr(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=60)
+            avg_val_ssim+= ssim(y[0,0,...].detach().cpu().numpy(),prediction[0,0,...].detach().cpu().numpy(),data_range=60)
             if metric is not None:
                 avg_val_metric += metric(prediction,y).item()
+
+            
+            #writer.add_image('prediction', prediction[0,...], 0)
+            #writer.add_image('ground truth', y[0,...], 1)
+
+        #imsave(f"src/visualize/gt_val_epoch{epoch}.tiff" ,y[0,0,...].detach().cpu().numpy())
+        #imsave(f"src/visualize/pred_val_epoch{epoch}.tiff" ,prediction[0,0,...].detach().cpu().numpy())
+        
 
     avg_val_loss = avg_val_loss / len(loader)
     avg_val_psnr = avg_val_psnr / len(loader)
@@ -235,7 +245,7 @@ def train_loop(
         )
         
         if validate_param:
-            avg_val_loss, avg_val_psnr, avg_val_ssim = validate(model, val_loader, loss_function, metric)
+            avg_val_loss, avg_val_psnr, avg_val_ssim = validate(model, val_loader, loss_function, metric,epoch=epoch)
             if avg_val_loss < best_val_loss:
                 print(f"Epoch {epoch} validation loss ({avg_val_loss}) is better than previous ({best_val_loss}) so saving!")
                 best_val_loss = avg_val_loss
@@ -258,7 +268,7 @@ def train_loop(
 if __name__ == "__main__":
     assert torch.cuda.is_available()
 
-
+    print(len(train_data))
     train_loop(
         n_epochs,
         model,
