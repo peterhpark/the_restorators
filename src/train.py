@@ -35,12 +35,15 @@ gt_dir_val = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/
 input_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/input"
 gt_dir_test = "/mnt/efs/shared_data/restorators/monalisa_data/Actin_20nmScanStep/train/gt"
 
-
+#
 list_transforms = transforms.Compose(
     [
         transforms.RandomCrop(256),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip()
+        transforms.RandomVerticalFlip(),
+        #transforms.RandomRotation(degrees=[90,180,270]),
+        #torchvision.transforms.ElasticTransform()
+        #transforms.TenCrop(256, vertical_flip=False)
     ]
 )
 
@@ -52,7 +55,7 @@ avg_gt = 66.3622
 std_gt = 177.3616
 
 #creating loaders train,val, test
-train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,list_transforms)
+train_data = SimpleMonalisaDataset(input_dir_train,gt_dir_train,transform=list_transforms)
 train_loader = DataLoader(train_data,batch_size=8,shuffle=True)
 
 val_data = SimpleMonalisaDataset(input_dir_val,gt_dir_val, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
@@ -83,10 +86,10 @@ simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 
 # training parameters
-optimizer = torch.optim.Adam(model.parameters(),lr=0.00001)
+optimizer = torch.optim.Adam(model.parameters(),lr=0.0001)
 loss_function = torch.nn.MSELoss()
 metric = None
-n_epochs = 1000
+n_epochs = 2000
 
 
 #validate function
@@ -129,8 +132,8 @@ def validate(model,
                 avg_val_metric += metric(prediction,y).item()
 
             
-            #writer.add_image('prediction', prediction[0,...], 0)
-            #writer.add_image('ground truth', y[0,...], 1)
+            writer.add_image('prediction', prediction[0,...], 0)
+            writer.add_image('ground truth', y[0,...], 1)
 
         #imsave(f"src/visualize/gt_val_epoch{epoch}.tiff" ,y[0,0,...].detach().cpu().numpy())
         #imsave(f"src/visualize/pred_val_epoch{epoch}.tiff" ,prediction[0,0,...].detach().cpu().numpy())

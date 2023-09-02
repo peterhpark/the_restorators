@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from abc import ABC, abstractmethod
 import tifffile
+from tifffile import imread
 
 class RestoratorsDataset(Dataset, ABC):
     '''A PyTorch dataset to serve as a base class for our custom transformer datasets.'''
@@ -157,12 +158,15 @@ class SimpleMonalisaDataset(Dataset):
         input_path = os.path.join(self.input_dir,self.input_list[idx])
         gt_path = os.path.join(self.gt_dir,self.gt_list[idx])
 
-        input = Image.open(input_path)
+        #input = Image.open(input_path)
+        input = imread(input_path)
+        input = (input - self.avg_input.item()) / self.std_input.item()
         input = self.inp_transforms(input)
-        input = (input - self.avg_input) / self.std_input
 
-        gt = transforms.ToTensor()(Image.open(gt_path))
-        gt = (gt - self.avg_gt) / self.std_gt
+        #gt = Image.open(gt_path)
+        gt = imread(gt_path)
+        gt = (gt - self.avg_gt.item()) / self.std_gt.item()
+        gt= transforms.ToTensor()(gt)
 
         if self.transform is not None:
             # Note: using seeds to ensure the same random transform is applied to
