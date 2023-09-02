@@ -34,11 +34,11 @@ class UNet(nn.Module):
             nn.ReLU(),
         )
 
-    # upsampling via transposed 2d convolutions
+    # upsampling via transposed 2d convolutions 
     def _upsampler(self, in_channels, out_channels):
         return nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
 
-    def __init__(self, in_channels=1, out_channels=1, depth=4, final_activation=None):
+    def __init__(self, in_channels=1, out_channels=1, depth=4, feat=16, final_activation=None):
         super().__init__()
 
         assert depth < 10, "Max supported depth is 9"
@@ -46,6 +46,7 @@ class UNet(nn.Module):
         # the depth (= number of encoder / decoder levels) is
         # hard-coded to 4
         self.depth = depth
+        self.feat = feat
 
         # the final activation must either be None or a Module
         if final_activation is not None:
@@ -59,34 +60,35 @@ class UNet(nn.Module):
         # modules of the encoder path
         self.encoder = nn.ModuleList(
             [
-                self._conv_block(in_channels, 16),
-                self._conv_block(16, 32),
-                self._conv_block(32, 64),
-                self._conv_block(64, 128),
-                self._conv_block(128, 256),
-                self._conv_block(256, 512),
-                self._conv_block(512, 1024),
-                self._conv_block(1024, 2048),
-                self._conv_block(2048, 4096),
+                self._conv_block(in_channels, feat),
+                self._conv_block(feat, feat*2),
+                self._conv_block(feat*2, feat*4),
+                self._conv_block(feat*4, feat*8),
+                self._conv_block(feat*8, feat*16),
+                self._conv_block(feat*16, feat*32),
+                self._conv_block(feat*32, feat*64),
+                self._conv_block(feat*64, feat*128),
+                self._conv_block(feat*128, feat*256),
             ][:depth]
         )
         # the base convolution block
         if depth >= 1:
-            self.base = self._conv_block(2 ** (depth + 3), 2 ** (depth + 4))
+            self.base = self._conv_block(feat * (2 ** (depth-1)), feat* 2 ** (depth))
         else:
-            self.base = self._conv_block(1, 2 ** (depth + 4))
+            self.base = self._conv_block(1, feat * (2 ** depth))
+            
         # modules of the decoder path
         self.decoder = nn.ModuleList(
             [
-                self._conv_block(8192, 4096),
-                self._conv_block(4096, 2048),
-                self._conv_block(2048, 1024),
-                self._conv_block(1024, 512),
-                self._conv_block(512, 256),
-                self._conv_block(256, 128),
-                self._conv_block(128, 64),
-                self._conv_block(64, 32),
-                self._conv_block(32, 16),
+                self._conv_block(feat*512, feat*256),
+                self._conv_block(feat*256, feat*128),
+                self._conv_block(feat*128, feat*64),
+                self._conv_block(feat*64, feat*32),
+                self._conv_block(feat*32, feat*16),
+                self._conv_block(feat*16, feat*8),
+                self._conv_block(feat*8, feat*4),
+                self._conv_block(feat*4, feat*2),
+                self._conv_block(feat*2, feat),
             ][-depth:]
         )
 
@@ -95,21 +97,21 @@ class UNet(nn.Module):
         # the upsampling layers
         self.upsamplers = nn.ModuleList(
             [
-                self._upsampler(8192, 4096),
-                self._upsampler(4096, 2048),
-                self._upsampler(2048, 1024),
-                self._upsampler(1024, 512),
-                self._upsampler(512, 256),
-                self._upsampler(256, 128),
-                self._upsampler(128, 64),
-                self._upsampler(64, 32),
-                self._upsampler(32, 16),
+                self._upsampler(feat*512, feat*256),
+                self._upsampler(feat*256, feat*128),
+                self._upsampler(feat*128, feat*64),
+                self._upsampler(feat*64, feat*32),
+                self._upsampler(feat*32, feat*16),
+                self._upsampler(feat*16, feat*8),
+                self._upsampler(feat*8, feat*4),
+                self._upsampler(feat*4, feat*2),
+                self._upsampler(feat*2, feat),
             ][-depth:]
         )
         # output conv and activation
         # the output conv is not followed by a non-linearity, because we apply
         # activation afterwards
-        self.out_conv = nn.Conv2d(16, out_channels, 1)
+        self.out_conv = nn.Conv2d(self.feat, out_channels, 1)
         self.activation = final_activation
 
     def forward(self, input):
