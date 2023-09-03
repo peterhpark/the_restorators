@@ -1,5 +1,6 @@
 '''Training script to train the model defined in model_bir.py'''
 import os
+import numpy as np
 import torch
 from model_bir import BirNetwork
 from Data import BirefringenceDataset
@@ -8,7 +9,6 @@ import torch.nn as nn
 from torchsummary import summary
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-import numpy as np
 
 # load data
 DATA_PATH = "/mnt/efs/shared_data/restorators/spheres"
@@ -97,9 +97,10 @@ def validate(network, valloader, loss_function, optimizer, tfwriter, epoch):
     return val_loss_per_batch
 
 if __name__ == '__main__':
-    writer = SummaryWriter('runs/spheres10')
+    writer = SummaryWriter('runs/spheres')
     # to view training results: tensorboard --logdir runs
-    for epoch in range(10):  # loop over the dataset multiple times
+    min_val_loss = 1000
+    for epoch in range(300):  # loop over the dataset multiple times
         print(f"starting training epoch {epoch}")
         trained_net, train_loss_per_batch = train_one_epoch(net, trainloader, criterion, optimizer, writer, epoch)
         writer.add_scalar('Loss/train per epoch', train_loss_per_batch, epoch)
@@ -108,6 +109,16 @@ if __name__ == '__main__':
         val_loss_per_batch = validate(trained_net, valloader, criterion, optimizer, writer, epoch)
         writer.add_scalar('Loss/validate per epoch', np.mean(val_loss_per_batch), epoch)
         
+        if np.mean(val_loss_per_batch) < min_val_loss:
+            # save model
+            save_dir = "/mnt/efs/shared_data/restorators/models_bir/"
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            model_filename = save_dir + f'sphere_9_3_epoch{epoch}.pt'
+            torch.save(trained_net.state_dict(), model_filename)
+            print(f'saved model as {model_filename}')
+            min_val_loss = np.mean(val_loss_per_batch)
+        
     writer.close()
     print('finished training')
 
@@ -115,6 +126,6 @@ if __name__ == '__main__':
     save_dir = "/mnt/efs/shared_data/restorators/models_bir/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    model_filename = save_dir + 'sphere.pt'
+    model_filename = save_dir + 'sphere_9_3_final.pt'
     torch.save(trained_net.state_dict(), model_filename)
     print(f'saved model as {model_filename}')
