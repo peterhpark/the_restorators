@@ -16,6 +16,8 @@ from skimage.metrics import structural_similarity as ssim
 import torchvision
 from tifffile import imsave
 from Data import SimpleMonalisaDataset
+from skimage.metrics import peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim
 
 avg_input = 55.0787
 std_input = 144.3149
@@ -47,7 +49,11 @@ for idx, (input, gt) in enumerate(test_loader):
     input =input[0,0,...]
     gt = gt[0,0,...]
     prediction = prediction [0,0,...]
+
+    psnr_test = psnr(gt,prediction,data_range=60)
+    ssim_test = ssim(gt,prediction,data_range=60)
     
     imsave(f"inference_results/pred{idx:02d}.tiff",prediction)
     imsave(f"inference_results/gt{idx:02d}.tiff",gt)
-    imsave(f"inference_results/input{idx:02d}.tiff",input)    
+    imsave(f"inference_results/input{idx:02d}.tiff",input)
+        
