@@ -77,7 +77,7 @@ val_loader = DataLoader(val_data, batch_size=5) """
 # model parameters
 in_channels=1
 out_channels=1
-depth=4
+depth=5
 final_activation=None
 
 #building model
@@ -268,7 +268,7 @@ def train_loop(
             if avg_val_loss < best_val_loss:
                 print(f"Epoch {epoch} validation loss ({avg_val_loss}) is better than previous ({best_val_loss}) so saving!")
                 best_val_loss = avg_val_loss
-                torch.save(model, "model.pt")
+                torch.save(model, "model_L2_depth5.pt")
             else:
                 print(f"Epoch {epoch} validation loss ({avg_val_loss}) is worse than previous ({best_val_loss}) so no saving!")
 
