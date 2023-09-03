@@ -32,12 +32,14 @@ class RestoratorsDataset(Dataset, ABC):
 
 class BirefringenceDataset(RestoratorsDataset):
     """A PyTorch dataset to load polarized light field images and birefringent objects"""
-    def __init__(self, root_dir, transform=None, split='train'):
+    def __init__(self, root_dir, source_norm=False, target_norm=False, transform=None, split='train'):
         self.root_dir = root_dir  # the directory with all the training samples
         self.samples = os.listdir(root_dir)  # list the parent directory of samples
         self.source = os.listdir(os.path.join(self.root_dir, 'images')) # source domain
         self.target = os.listdir(os.path.join(self.root_dir, 'objects')) # target domain
         self.img_transform = self.img_transform  # transformations to apply to raw LF image only
+        self.source_norm = source_norm
+        self.target_norm = target_norm
         self.transform = transform  # transformations for augmentations
         #  transformations to apply just to inputs
         # self.input_transform # transforms.ToTensor() only works on smaller dim images
@@ -64,9 +66,13 @@ class BirefringenceDataset(RestoratorsDataset):
         # We'll be using Pillow library for reading files
         # since many torchvision transforms operate on PIL images
         source = tifffile.imread(source_path)
+        if self.source_norm:
+            source = self.source_transform(source)
         source = self.numpy2tensor(source).to(torch.float32)
         target_path = os.path.join(self.root_dir, 'objects', self.target[idx])
         target = tifffile.imread(target_path)
+        if self.target_norm:
+            target = self.target_transform(target)
         target = self.numpy2tensor(target).to(torch.float32)
         return source, target
 
@@ -77,7 +83,22 @@ class BirefringenceDataset(RestoratorsDataset):
     def numpy2tensor(self, array):
         return torch.from_numpy(array)
 
+    def source_transform(self, source):
+        '''Normalize the retardance and azimuth values'''
+        # pinholes = source.shape[0] / 2
+        # delta = source[:pinholes, ...]
+        # azim = source[pinholes:, ...]
+        # new_source = np.zeros(source.shape)
+        new_source = np.sin(source)
+        return new_source
 
+    def target_transform(self, target):
+        '''Normalize the birefringence values'''
+        new_target = np.zeros(target.shape)
+        delta_n = target[0, ...]
+        new_target[0, ...] = (delta_n - 0.005) / 0.01 + 0.5
+        # optic axis elements are still between -1 and 1, not 0 and 1
+        return new_target
 
 
 class SimpleMonalisaDataset(Dataset):
@@ -249,6 +270,6 @@ if __name__ == "__main__":
     # train_loader, val_loader = load()
     TRAIN_DATA_PATH = "/mnt/efs/shared_data/restorators/spheres"
 
-    train_data = BirefringenceDataset(TRAIN_DATA_PATH, split='test')
+    train_data = BirefringenceDataset(TRAIN_DATA_PATH, split='test', source_norm=True, target_norm=True)
     train_data[0] # pair 0
     train_data[1] # pair 1

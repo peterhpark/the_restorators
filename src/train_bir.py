@@ -12,9 +12,9 @@ import torch.optim as optim
 
 # load data
 DATA_PATH = "/mnt/efs/shared_data/restorators/spheres"
-train_data = BirefringenceDataset(DATA_PATH, split='train')
-val_data = BirefringenceDataset(DATA_PATH, split='val')
-test_data = BirefringenceDataset(DATA_PATH, split='test')
+train_data = BirefringenceDataset(DATA_PATH, split='train', source_norm=True, target_norm=True)
+val_data = BirefringenceDataset(DATA_PATH, split='val', source_norm=True, target_norm=True)
+test_data = BirefringenceDataset(DATA_PATH, split='test', source_norm=True, target_norm=True)
 batch_size = 1
 trainloader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
@@ -97,10 +97,11 @@ def validate(network, valloader, loss_function, optimizer, tfwriter, epoch):
     return val_loss_per_batch
 
 if __name__ == '__main__':
-    writer = SummaryWriter('runs/spheres')
+    run_name = 'sphere_9_3_norm'
+    writer = SummaryWriter('runs/' + run_name)
     # to view training results: tensorboard --logdir runs
     min_val_loss = 1000
-    for epoch in range(300):  # loop over the dataset multiple times
+    for epoch in range(40):  # loop over the dataset multiple times
         print(f"starting training epoch {epoch}")
         trained_net, train_loss_per_batch = train_one_epoch(net, trainloader, criterion, optimizer, writer, epoch)
         writer.add_scalar('Loss/train per epoch', train_loss_per_batch, epoch)
@@ -109,23 +110,24 @@ if __name__ == '__main__':
         val_loss_per_batch = validate(trained_net, valloader, criterion, optimizer, writer, epoch)
         writer.add_scalar('Loss/validate per epoch', np.mean(val_loss_per_batch), epoch)
         
+        print(f'mean val loss: {np.mean(val_loss_per_batch):.6f}, current min val loss: {min_val_loss:.6f}')
         if np.mean(val_loss_per_batch) < min_val_loss:
             # save model
-            save_dir = "/mnt/efs/shared_data/restorators/models_bir/"
+            save_dir = "/mnt/efs/shared_data/restorators/models_bir/" + run_name + '/'
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
-            model_filename = save_dir + f'sphere_9_3_epoch{epoch}.pt'
+            model_filename = save_dir + f'norm_epoch{epoch}.pt'
             torch.save(trained_net.state_dict(), model_filename)
             print(f'saved model as {model_filename}')
             min_val_loss = np.mean(val_loss_per_batch)
-        
+
     writer.close()
     print('finished training')
 
     # save model
-    save_dir = "/mnt/efs/shared_data/restorators/models_bir/"
+    save_dir = "/mnt/efs/shared_data/restorators/models_bir/" + run_name + '/'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    model_filename = save_dir + 'sphere_9_3_final.pt'
+    model_filename = save_dir + 'norm_final.pt'
     torch.save(trained_net.state_dict(), model_filename)
     print(f'saved model as {model_filename}')

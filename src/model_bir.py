@@ -14,11 +14,11 @@ class BirNetwork(nn.Module):
         conv1_out_dim = 10 # calc from kernel size
         self.conv1 = nn.Sequential(
             nn.Conv2d(512, 256, kernel_size=3),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Conv2d(256, 128, kernel_size=3),
             nn.ReLU(),
             nn.Conv2d(128, conv1_out_chs, kernel_size=3),
-            nn.LeakyReLU(),
+            nn.ReLU(),
         )
         linear_input_size = conv1_out_dim * conv1_out_dim * conv1_out_chs
         target_size = 4 * 8 * 32 * 32
@@ -27,14 +27,14 @@ class BirNetwork(nn.Module):
         # target_size_expand = target_size * combat_conv_size
         self.fully_connected = nn.Sequential(
             nn.Linear(linear_input_size, target_size_expand),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             # nn.Linear(target_size_expand, target_size_expand),
             # nn.ReLU()
         )
         # convolutions layers within target domain
         self.conv2a = nn.Sequential(
             nn.Conv3d(4, 4, kernel_size=3, padding='valid'),
-            nn.LeakyReLU(),
+            nn.ReLU(),
         )
         self.conv2b = nn.Sequential(
             nn.Conv3d(4, 4, kernel_size=3, padding='valid'),
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     print(summary(model, (512, 16, 16)))
 
     TRAIN_DATA_PATH = "/mnt/efs/shared_data/restorators/spheres"
-    train_data = BirefringenceDataset(TRAIN_DATA_PATH, split='test')
+    train_data = BirefringenceDataset(TRAIN_DATA_PATH, split='test', source_norm=True, target_norm=True)
     X = train_data[0][0].to(device).to(torch.float32).unsqueeze(dim=0)
     y_pred = model(X)
     print(f"Predicted values: {y_pred}")
