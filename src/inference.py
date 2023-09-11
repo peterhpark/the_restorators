@@ -33,7 +33,10 @@ transform = transforms.CenterCrop(1024)
 test_data = SimpleMonalisaDataset(input_dir_test,gt_dir_test, transform=transform, mean_input = avg_input, std_input = std_input, mean_gt = avg_gt, std_gt = std_gt)
 test_loader = DataLoader(test_data,batch_size=5)
 
-model = torch.load("model_L2loss.pt")
+#model = torch.load("model_L1_depth2.pt")
+#model = torch.load("model_L1_depth3.pt")
+model = torch.load("model_L1_depth4.pt")
+#model = torch.load("model_L1_depth5.pt")
 device = torch.device ("cuda")
 
 for idx, (input, gt) in enumerate(test_loader):

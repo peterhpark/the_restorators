@@ -77,7 +77,7 @@ val_loader = DataLoader(val_data, batch_size=5) """
 # model parameters
 in_channels=1
 out_channels=1
-depth=5
+depth=4
 final_activation=None
 
 #building model
@@ -87,7 +87,7 @@ simple_net = UNet(1,1,depth=1,final_activation=torch.nn.Sigmoid())
 
 # training parameters
 optimizer = torch.optim.Adam(model.parameters(),lr=0.0001)
-loss_function = torch.nn.MSELoss()
+loss_function = torch.nn.L1Loss()
 metric = None
 n_epochs = 2000
 
@@ -268,7 +268,7 @@ def train_loop(
             if avg_val_loss < best_val_loss:
                 print(f"Epoch {epoch} validation loss ({avg_val_loss}) is better than previous ({best_val_loss}) so saving!")
                 best_val_loss = avg_val_loss
-                torch.save(model, "model_L2_depth5.pt")
+                torch.save(model, "model_L1_depth4.pt")
             else:
                 print(f"Epoch {epoch} validation loss ({avg_val_loss}) is worse than previous ({best_val_loss}) so no saving!")
 
